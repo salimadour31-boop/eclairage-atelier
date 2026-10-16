@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Éclairage Atelier — plan d’éclairage vu de dessus / lighting diagram planner</title>
+  <meta name="description" content="Outil gratuit pour dessiner des plans d’éclairage et de plateau vus de dessus : caméras avec champ réel, projecteurs (K, faisceau, intensité), modificateurs, décor, liste du matériel, contraste key:fill. Export SVG, PNG, JSON, PDF. FR / EN / Taqbaylit.">
+  <meta name="theme-color" content="#14161b">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314161b'/%3E%3Cpath d='M9 16 L27 7 L27 25 Z' fill='%23ffb35c' fill-opacity='.55'/%3E%3Crect x='4' y='11' width='8' height='10' rx='2' fill='%23e8ebf1'/%3E%3Ccircle cx='24' cy='16' r='3' fill='%23ffcf4a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#stage" data-i18n="stageLabel">Plan</a>
+
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 16 L27 7 L27 25 Z" fill="#ffb35c" fill-opacity=".55"/><rect x="4" y="11" width="8" height="10" rx="2" fill="currentColor"/><circle cx="24" cy="16" r="3" fill="#ffcf4a"/></svg>
+      <div>
+        <h1 data-i18n="appTitle">Éclairage Atelier</h1>
+        <p class="tagline" data-i18n="tagline"></p>
+      </div>
+    </div>
+
+    <div class="toolbar" role="toolbar" aria-label="Actions">
+      <div class="tgroup">
+        <label class="sr-only" for="presetSel" data-i18n="presets">Préréglages</label>
+        <select id="presetSel"></select>
+        <button id="presetBtn" class="btn" type="button" data-i18n="loadPreset">Charger</button>
+        <button id="newBtn" class="btn ghost" type="button" data-i18n="newPlan">Nouveau plan</button>
+      </div>
+      <div class="tgroup">
+        <button id="undoBtn" class="btn icon" type="button" data-i18n-title="undo" data-i18n-aria="undo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4 12l5 5M4 12h10a6 6 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -3)"/></svg></button>
+        <button id="redoBtn" class="btn icon" type="button" data-i18n-title="redo" data-i18n-aria="redo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5M20 12H10a6 6 0 0 0 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -3)"/></svg></button>
+      </div>
+      <div class="tgroup export">
+        <span class="tlabel" data-i18n="export">Exporter</span>
+        <button id="svgBtn" class="btn" type="button" data-i18n="exportSvg">SVG</button>
+        <button id="pngBtn" class="btn" type="button" data-i18n="exportPng">PNG</button>
+        <button id="jsonBtn" class="btn" type="button" data-i18n="exportJson">JSON</button>
+        <button id="openBtn" class="btn ghost" type="button" data-i18n="importJson">Ouvrir</button>
+        <button id="printBtn" class="btn" type="button" data-i18n="print">PDF</button>
+        <input id="fileIn" type="file" accept=".json,application/json" hidden>
+      </div>
+      <div class="tgroup">
+        <button id="themeBtn" class="btn icon" type="button" data-i18n-title="theme" data-i18n-aria="theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
+        <label class="sr-only" for="lang" data-i18n="language">Langue</label>
+        <select id="lang"></select>
+        <button id="helpBtn" class="btn icon" type="button" data-i18n-title="help" data-i18n-aria="help" aria-haspopup="dialog">?</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Palette of elements (drag onto the stage, or click / tap to add) -->
+    <aside class="palette" aria-labelledby="paletteTitle">
+      <h2 id="paletteTitle" data-i18n="palette">Éléments</h2>
+      <p class="hint" data-i18n="paletteHint"></p>
+      <div id="paletteList" class="palette-list"></div>
+    </aside>
+
+    <!-- Stage -->
+    <section class="stage-wrap" aria-labelledby="stageTitle">
+      <h2 id="stageTitle" class="sr-only" data-i18n="stageLabel">Plan</h2>
+      <svg id="stage" tabindex="0" role="application" data-i18n-aria="stageLabel" xmlns="http://www.w3.org/2000/svg">
+        <defs id="stageDefs"></defs>
+        <g id="viewport">
+          <g id="lGrid"></g><g id="lBeams" pointer-events="none"></g><g id="lItems"></g><g id="lLabels" pointer-events="none"></g><g id="lOverlay"></g>
+        </g>
+      </svg>
+      <div class="zoombar">
+        <button id="zoomOut" class="btn icon" type="button" data-i18n-title="zoomOut" data-i18n-aria="zoomOut">−</button>
+        <button id="zoomFit" class="btn" type="button" data-i18n="fit">Ajuster</button>
+        <button id="zoomIn" class="btn icon" type="button" data-i18n-title="zoomIn" data-i18n-aria="zoomIn">+</button>
+        <span id="zoomVal" class="zoomval" aria-live="off"></span>
+      </div>
+      <div id="cursorPos" class="cursorpos" aria-hidden="true"></div>
+    </section>
+
+    <!-- Right side: properties, lighting ratio, gear list, plan settings -->
+    <aside class="side">
+      <details id="propsPanel" class="panel" open>
+        <summary data-i18n="props">Propriétés</summary>
+        <div id="props" class="props"></div>
+      </details>
+      <details id="ratioPanel" class="panel" open>
+        <summary data-i18n="ratio">Contraste</summary>
+        <div id="ratio"></div>
+      </details>
+      <details id="gearPanel" class="panel" open>
+        <summary data-i18n="gear">Matériel</summary>
+        <div id="gear"></div>
+      </details>
+      <details id="planPanel" class="panel">
+        <summary data-i18n="plan">Plan</summary>
+        <div class="form">
+          <label class="f wide"><span data-i18n="title">Titre</span><input id="planTitle" type="text" maxlength="160" data-i18n-ph="titlePh"></label>
+          <label class="f"><span data-i18n="stageW">Largeur</span><input id="stageW" type="number" min="2" max="200" step="0.5"></label>
+          <label class="f"><span data-i18n="stageH">Profondeur</span><input id="stageH" type="number" min="2" max="200" step="0.5"></label>
+          <label class="f"><span data-i18n="gridStep">Pas</span>
+            <select id="gridStep"><option value="0.1">10 cm</option><option value="0.25">25 cm</option><option value="0.5">50 cm</option><option value="1">1 m</option></select></label>
+          <label class="chk"><input id="snapChk" type="checkbox"> <span data-i18n="snap">Magnétisme</span></label>
+          <label class="chk"><input id="beamsChk" type="checkbox"> <span data-i18n="showBeams">Faisceaux</span></label>
+          <label class="chk"><input id="fovChk" type="checkbox"> <span data-i18n="showFov">Champ</span></label>
+          <label class="chk"><input id="labelsChk" type="checkbox"> <span data-i18n="showLabels">Étiquettes</span></label>
+          <label class="chk"><input id="gridChk" type="checkbox"> <span data-i18n="showGrid">Grille</span></label>
+        </div>
+      </details>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <span data-i18n="footer"></span>
+    <a href="https://github.com/salimadour31-boop/eclairage-atelier" data-i18n="source">Code source</a>
+  </footer>
+
+  <!-- Print sheet (filled just before printing) -->
+  <div id="printSheet" class="print-sheet" aria-hidden="true"></div>
+
+  <dialog id="helpDlg" aria-labelledby="helpTitle">
+    <h2 id="helpTitle" data-i18n="help">Aide</h2>
+    <p data-i18n="helpIntro"></p>
+    <h3 data-i18n="shortcuts">Raccourcis</h3>
+    <table class="keys">
+      <tr><td><kbd>Suppr</kbd> <kbd>⌫</kbd></td><td data-i18n="kDel"></td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td data-i18n="kDup"></td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> · <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td data-i18n="kUndo"></td></tr>
+      <tr><td><kbd>R</kbd> · <kbd>Maj</kbd>+<kbd>R</kbd> / <kbd>E</kbd></td><td data-i18n="kRot"></td></tr>
+      <tr><td><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd></td><td data-i18n="kMove"></td></tr>
+      <tr><td><kbd>]</kbd> · <kbd>[</kbd></td><td data-i18n="kLayer"></td></tr>
+      <tr><td><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></td><td data-i18n="kZoom"></td></tr>
+      <tr><td><kbd>S</kbd></td><td data-i18n="kSnap"></td></tr>
+      <tr><td><kbd>Échap</kbd></td><td data-i18n="kEsc"></td></tr>
+      <tr><td><kbd>Alt</kbd></td><td data-i18n="kAlt"></td></tr>
+      <tr><td>🖱️ / ✋</td><td data-i18n="kPan"></td></tr>
+    </table>
+    <form method="dialog"><button class="btn" data-i18n="close">Fermer</button></form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="ghost" class="drag-ghost" aria-hidden="true"></div>
+
+  <script src="js/core.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
